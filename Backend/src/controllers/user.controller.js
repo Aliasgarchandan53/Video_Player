@@ -93,9 +93,9 @@ const loginUser = asyncHandler(async (req, res)=>{
     //access and refresh token
     // send secure cookie and success response
 
-    const {email, username, password} = req.body;
-
-    if(!username || !email){
+    const { email, username, password } = req.body;
+    
+    if(!username && !email){
         throw new ApiError(400,"Username or email is required");
     }
     const user = await User.findOne({
@@ -156,7 +156,7 @@ const logoutUser = asyncHandler(async (req,res) => {
     .clearCookie("accessToken",options)
     .clearCookie("refreshToken",options)
     .json(
-        new ApiResponse(200,{},"User logged")
+        new ApiResponse(200,{},"User logged out.")
     )
 })
 
