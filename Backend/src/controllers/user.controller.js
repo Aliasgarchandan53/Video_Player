@@ -4,6 +4,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/Cloudinary.js";
 import jwt from "jsonwebtoken";
+
 const generateAccessAndRefreshToken = async (userId) => {
   try {
     const user = await User.findById(userId);
@@ -209,4 +210,154 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   }
 });
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken };
+const changeCurrentPassword = asyncHandler(async (req,res)=>{
+  const {oldPassword, newPassword} = req.body;
+  const user = await User.findById(req?.user._id);
+  const isPasswordCorrect = await user.isPasswordCorrect(oldPassword);
+  if(!isPasswordCorrect){
+    throw new ApiError(400,"Invalid old password.");
+  }
+
+  user.password=newPassword;
+  await user.save({validateBeforeSave:false});
+
+  return res
+  .status(200)
+  .json(
+    new ApiResponse(
+      200,{},"Password changed successfully."
+    )
+  )
+})
+
+const getCurrentUser = asyncHandler(async (req,res)=>{
+  return res
+  .status(200)
+  .json(
+    new ApiResponse(
+      200, req.user, "current user fetched successfully."
+    )
+  )
+})
+
+//write separate endpoint to update file...don't save the complete user again
+
+//take any details you want to allow user to update, here we update both fullName and email
+const updateAccountDetails = asyncHandler(async (req,res)=>{
+  const {fullName, email} = req.body;
+
+  if(!fullName || !email){
+    throw new ApiError(400, "Both full name and email are required");
+  }
+
+  const user = User.findByIdAndUpdate(
+    req?.user._id,
+    {
+      $set:{
+        fullName,
+        email
+      }
+    },
+    {new:true}
+  ).select("-password");
+
+  return res
+  .status(200)
+  .json(
+    new ApiResponse(
+      200, user, "Account details updated successfully."
+    )
+  )
+})
+
+//updating files
+const updateUserAvatar = asyncHandler(async (req,res)=>{
+  //get local path as a single file from request
+  //get current image uri
+  //delete the current image -- can't do rn as it requires storing public id 
+  //upload new image
+  //update new image url in db
+  //return response
+
+    const avatarLocalPath= req.file?.path;
+    if(!avatarLocalPath){
+      throw new ApiError(400,"Avatar file is missing.")
+    }
+    //todo : delete old image
+
+    const avatar = await uploadOnCloudinary(avatarLocalPath);
+
+    if(!avatar.url){
+      throw new ApiError(500, "Error while uploading avatar on cloudinary");
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user?._id,
+      {
+        $set:{
+          avatar:avatar.url
+        }
+      }
+      ,{new:true}
+    ).select("-password");
+
+    return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200, user, "Avatar image updated successfully"
+      )
+    )
+})
+
+const updateUserCoverImage = asyncHandler(async (req,res)=>{
+  //get local path as a single file from request
+  //get current image uri
+  //delete the current image -- can't do rn as it requires storing public id 
+  //upload new image
+  //update new image url in db
+  //return response
+
+    const coverImageLocalPath= req.file?.path;
+    if(!coverImageLocalPath){
+      throw new ApiError(400,"Cover image file is missing.")
+    }
+    //todo : delete old image
+
+    const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+
+    if(!coverImage.url){
+      throw new ApiError(500, "Error while uploading cover image on cloudinary");
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user?._id,
+      {
+        $set:{
+          coverImage:coverImage.url
+        }
+      }
+      ,{new:true}
+    ).select("-password");
+
+    return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200, user, "Cover image updated successfully"
+      )
+    )
+})
+
+
+export { 
+  registerUser,
+  loginUser, 
+  logoutUser, 
+  refreshAccessToken ,
+  changeCurrentPassword,
+  getCurrentUser,
+  updateAccountDetails,
+  updateUserAvatar,
+  updateUserCoverImage
+};
