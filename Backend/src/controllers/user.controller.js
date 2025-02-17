@@ -244,28 +244,27 @@ const getCurrentUser = asyncHandler(async (req,res)=>{
 
 //take any details you want to allow user to update, here we update both fullName and email
 const updateAccountDetails = asyncHandler(async (req,res)=>{
-  const {fullName, email} = req.body;
-
-  if(!fullName || !email){
+  const {newFullName, newEmail} = req.body;
+  
+  if(!newFullName || !newEmail){
     throw new ApiError(400, "Both full name and email are required");
   }
 
-  const user = User.findByIdAndUpdate(
+  const updatedUser = await User.findByIdAndUpdate(
     req?.user._id,
     {
       $set:{
-        fullName,
-        email
+        fullName:newFullName,
+        email:newEmail
       }
     },
     {new:true}
   ).select("-password");
-
   return res
   .status(200)
   .json(
     new ApiResponse(
-      200, user, "Account details updated successfully."
+      200,updatedUser, "Account details updated successfully."
     )
   )
 })
