@@ -25,15 +25,14 @@ const uploadOnCloudinary = async (localFilePath) => {
   }
 };
 
-/*
-Can't be implemented rn as it requires storing public id in db
-const deleteFromCloudinary = async (imageUrl)=>{
+const deleteFromCloudinary = async (public_id) => {
   try {
-    if(!imageUrl) return null;
-    await cloudinary.uploader.destroy()
+    if (!public_id) return null;
+    const response = await cloudinary.uploader.destroy(public_id);
+    return response;
   } catch (error) {
-    
+    console.log(`Error while deleting the object : ${error}`);
   }
-}
-*/
-export { uploadOnCloudinary };
+};
+
+export { uploadOnCloudinary, deleteFromCloudinary };

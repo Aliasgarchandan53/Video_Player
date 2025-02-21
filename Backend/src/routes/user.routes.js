@@ -14,7 +14,6 @@ import {
 } from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
-import { healthcheck } from "../controllers/healthcheck.controller.js";
 const router = Router();
 
 router.route("/register").post(
@@ -32,7 +31,6 @@ router.route("/register").post(
 );
 
 router.route("/login").post(loginUser);
-router.route("/health-check").get(healthcheck)
 //secured routes
 router.route("/logout").post(verifyJWT, logoutUser);
 router.route("/refresh-token").post(refreshAccessToken); //verifyJwt is not exactly required
