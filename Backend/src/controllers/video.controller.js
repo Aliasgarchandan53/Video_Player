@@ -12,6 +12,55 @@ import {
 const getAllVideos = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
   //TODO: get all videos based on query, sort, pagination
+  const pageNum = parseInt(page, 10);
+  const limitNum = parseInt(limit, 10);
+  const pipeline = [];
+  const matchStage = {};
+  if (query) {
+    matchStage.$or = [
+      { title: { $regex: query, $options: "i" } }, // Case-insensitive title search
+      { description: { $regex: query, $options: "i" } }, // Case-insensitive description search
+    ];
+  }
+  if (userId) {
+    matchStage.userId = userId; // Filter by user ID if provided
+  }
+  if (Object.keys(matchStage).length > 0) {
+    pipeline.push({ $match: matchStage });
+  }
+  // Sorting stage
+  const sortStage = {};
+  sortStage[sortBy] = sortType === "asc" ? 1 : -1;
+  pipeline.push({ $sort: sortStage });
+
+  // Pagination stages
+  pipeline.push({ $skip: (pageNum - 1) * limitNum }, { $limit: limitNum });
+
+  // Fetch total count for pagination
+  const totalVideosPipeline = [
+    { $match: matchStage },
+    { $count: "totalVideos" },
+  ];
+
+  // Execute aggregation
+  const [videos, totalCountResult] = await Promise.all([
+    Video.aggregate(pipeline),
+    Video.aggregate(totalVideosPipeline),
+  ]);
+  const totalVideos =
+    totalCountResult.length > 0 ? totalCountResult[0].totalVideos : 0;
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        videos,
+        totalVideos,
+        currentPage: pageNum,
+        totalPages: Math.ceil(totalVideos / limitNum),
+      },
+      "Videos fetched successfully."
+    )
+  );
 });
 
 const publishAVideo = asyncHandler(async (req, res) => {
@@ -42,7 +91,8 @@ const publishAVideo = asyncHandler(async (req, res) => {
 
   const videoFile = await uploadOnCloudinary(videoLocalPath);
   const thumbnail = await uploadOnCloudinary(thumbnailLocalPath);
-
+  const user = await User.findById(req.user?._id);
+  if (!user) throw new ApiError(501, "Unable to fetch owner of the video.");
   const newVideo = await Video.create({
     videoFile: videoFile.url,
     thumbnail: thumbnail.url,
@@ -51,7 +101,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
     videoCloudinaryId: videoFile.public_id,
     thumbnailCloudinaryId: thumbnail.public_id,
     duration: videoFile.duration,
-    owner: req.user,
+    owner: user,
   });
   const createdVideo = await Video.findById(newVideo._id).select(
     "-videoCloudinaryId -thumbnailCloudinaryId "
@@ -181,7 +231,7 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
     : null;
   const video = await Video.findByIdAndUpdate(
     vid_id,
-    [{ $set: { isPublished: { $not: "$isPublished" } } }],//aggregation pipeline update syntax
+    [{ $set: { isPublished: { $not: "$isPublished" } } }], //aggregation pipeline update syntax
     { new: true }
   );
   if (!video) throw new ApiError(500, "Failed to toggle publish status.");
