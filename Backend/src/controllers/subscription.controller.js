@@ -16,10 +16,13 @@ const toggleSubscription = asyncHandler(async (req, res) => {
   if(!channelId){
     throw new ApiError(400,"Channel id is requuired.")
   }
-  channelId = isValidObjectId(channelId)? new mongoose.Types.ObjectId(channelId):null;
-  const channel = await User.findById(channelId);
+  const chId = isValidObjectId(channelId)? new mongoose.Types.ObjectId(channelId):null;
+  const channel = await User.findById(chId);
   if(!channel){
     throw new ApiError(500,"Channel does not exist.");
+  }
+  if(req.user?.username==channel.username){
+    throw new ApiError(504,"User cannot subscribe to himself")
   }
   const user = await User.findById(req.user?._id);
   if(!user){
@@ -33,7 +36,7 @@ const toggleSubscription = asyncHandler(async (req, res) => {
     }
   )
   if(!subscription){
-    throw new ApiError(503,"Something went wrong while subscribing the channel".)
+    throw new ApiError(503,"Something went wrong while subscribing the channel.")
   }
   return res
   .status(200)
